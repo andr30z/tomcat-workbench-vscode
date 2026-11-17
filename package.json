@@ -1,0 +1,250 @@
+{
+  "name": "tomcat-workbench",
+  "displayName": "Tomcat Workbench",
+  "description": "Independent, project-configured Tomcat and Java runtimes for Windows.",
+  "version": "0.9.0",
+  "publisher": "local-development",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.96.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "extensionKind": [
+    "workspace"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:.vscode/tomcat.json",
+    "onView:tomcatWorkbench.servers"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "Server execution, downloads and project changes require workspace trust."
+    },
+    "virtualWorkspaces": {
+      "supported": false
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json && node scripts/build.mjs",
+    "check": "tsc --noEmit",
+    "test": "node scripts/test.mjs",
+    "test:integration": "node scripts/test.mjs integration",
+    "package": "vsce package --no-dependencies --allow-missing-repository",
+    "vscode:prepublish": "npm run build"
+  },
+  "contributes": {
+    "commands": [
+      { "command": "tomcatWorkbench.configureHotReload", "title": "Tomcat: Configure Hot Reload", "icon": "$(sync)" },
+      { "command": "tomcatWorkbench.hotSwap", "title": "Tomcat: Apply HotSwap", "icon": "$(debug-restart)" },
+      { "command": "tomcatWorkbench.diagnoseDependencies", "title": "Tomcat: Diagnose Missing Dependencies", "icon": "$(lightbulb)" },
+      { "command": "tomcatWorkbench.build", "title": "Tomcat: Build WAR", "icon": "$(tools)" },
+      { "command": "tomcatWorkbench.buildRun", "title": "Tomcat: Build and Run", "icon": "$(run-all)" },
+      { "command": "tomcatWorkbench.buildDebug", "title": "Tomcat: Build and Debug", "icon": "$(debug-alt)" },
+      { "command": "tomcatWorkbench.previewBuildPom", "title": "Tomcat: Preview Build POM", "icon": "$(preview)" },
+      { "command": "tomcatWorkbench.debug", "title": "Tomcat: Debug", "icon": "$(debug-alt)" },
+      { "command": "tomcatWorkbench.stopDebug", "title": "Tomcat: Stop Debug (Disconnect)", "icon": "$(debug-disconnect)" },
+      {
+        "command": "tomcatWorkbench.create",
+        "title": "Tomcat: Create Instance",
+        "icon": "$(add)"
+      },
+      {
+        "command": "tomcatWorkbench.refresh",
+        "title": "Tomcat: Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "tomcatWorkbench.start",
+        "title": "Tomcat: Start",
+        "icon": "$(play)"
+      },
+      {
+        "command": "tomcatWorkbench.stop",
+        "title": "Tomcat: Stop",
+        "icon": "$(debug-stop)"
+      },
+      {
+        "command": "tomcatWorkbench.restart",
+        "title": "Tomcat: Restart",
+        "icon": "$(debug-restart)"
+      },
+      {
+        "command": "tomcatWorkbench.configure",
+        "title": "Tomcat: Edit Project Configuration",
+        "icon": "$(settings-gear)"
+      },
+      {
+        "command": "tomcatWorkbench.templates",
+        "title": "Tomcat: Initialize Native Configuration"
+      },
+      {
+        "command": "tomcatWorkbench.remove",
+        "title": "Tomcat: Remove Instance"
+      },
+      {
+        "command": "tomcatWorkbench.logs",
+        "title": "Tomcat: Show Console",
+        "icon": "$(output)"
+      },
+      {
+        "command": "tomcatWorkbench.logFiles",
+        "title": "Tomcat: Open Log Folder"
+      },
+      {
+        "command": "tomcatWorkbench.open",
+        "title": "Tomcat: Open Application",
+        "icon": "$(globe)"
+      },
+      {
+        "command": "tomcatWorkbench.deploy",
+        "title": "Tomcat: Deploy Application"
+      },
+      {
+        "command": "tomcatWorkbench.undeploy",
+        "title": "Tomcat: Undeploy Application"
+      },
+      {
+        "command": "tomcatWorkbench.secret",
+        "title": "Tomcat: Set Project Secret"
+      },
+      {
+        "command": "tomcatWorkbench.cleanup",
+        "title": "Tomcat: Remove Local Instance Data"
+      }
+    ],
+    "views": {
+      "explorer": [
+        {
+          "id": "tomcatWorkbench.servers",
+          "name": "Tomcat Servers"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "tomcatWorkbench.servers",
+        "contents": "Run Tomcat with its own Java runtime.\n[Create Instance](command:tomcatWorkbench.create)",
+        "when": "workspaceFolderCount != 0"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "tomcatWorkbench.create",
+          "when": "view == tomcatWorkbench.servers",
+          "group": "navigation"
+        },
+        {
+          "command": "tomcatWorkbench.refresh",
+          "when": "view == tomcatWorkbench.servers",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        { "command": "tomcatWorkbench.configureHotReload", "when": "view == tomcatWorkbench.servers", "group": "0_build" },
+        { "command": "tomcatWorkbench.hotSwap", "when": "view == tomcatWorkbench.servers && viewItem == debug", "group": "0_build" },
+        { "command": "tomcatWorkbench.diagnoseDependencies", "when": "view == tomcatWorkbench.servers", "group": "0_build" },
+        { "command": "tomcatWorkbench.buildRun", "when": "view == tomcatWorkbench.servers", "group": "0_build" },
+        { "command": "tomcatWorkbench.buildDebug", "when": "view == tomcatWorkbench.servers", "group": "0_build" },
+        { "command": "tomcatWorkbench.build", "when": "view == tomcatWorkbench.servers", "group": "0_build" },
+        { "command": "tomcatWorkbench.previewBuildPom", "when": "view == tomcatWorkbench.servers", "group": "0_build" },
+        { "command": "tomcatWorkbench.debug", "when": "view == tomcatWorkbench.servers && (viewItem == stopped || viewItem == failed || viewItem == running || viewItem == debug)", "group": "inline" },
+        { "command": "tomcatWorkbench.stopDebug", "when": "view == tomcatWorkbench.servers && viewItem == debug", "group": "1_runtime" },
+        { "command": "tomcatWorkbench.stop", "when": "view == tomcatWorkbench.servers && viewItem == debug", "group": "inline" },
+        { "command": "tomcatWorkbench.restart", "when": "view == tomcatWorkbench.servers && viewItem == debug", "group": "1_runtime" },
+        { "command": "tomcatWorkbench.open", "when": "view == tomcatWorkbench.servers && viewItem == debug", "group": "1_runtime" },
+        {
+          "command": "tomcatWorkbench.start",
+          "when": "view == tomcatWorkbench.servers && viewItem == stopped",
+          "group": "inline"
+        },
+        {
+          "command": "tomcatWorkbench.start",
+          "when": "view == tomcatWorkbench.servers && viewItem == failed",
+          "group": "inline"
+        },
+        {
+          "command": "tomcatWorkbench.stop",
+          "when": "view == tomcatWorkbench.servers && viewItem == running",
+          "group": "inline"
+        },
+        {
+          "command": "tomcatWorkbench.logs",
+          "when": "view == tomcatWorkbench.servers",
+          "group": "inline"
+        },
+        {
+          "command": "tomcatWorkbench.restart",
+          "when": "view == tomcatWorkbench.servers && viewItem == running",
+          "group": "1_runtime"
+        },
+        {
+          "command": "tomcatWorkbench.open",
+          "when": "view == tomcatWorkbench.servers && viewItem == running",
+          "group": "1_runtime"
+        },
+        {
+          "command": "tomcatWorkbench.configure",
+          "when": "view == tomcatWorkbench.servers",
+          "group": "2_configuration"
+        },
+        {
+          "command": "tomcatWorkbench.templates",
+          "when": "view == tomcatWorkbench.servers",
+          "group": "2_configuration"
+        },
+        {
+          "command": "tomcatWorkbench.deploy",
+          "when": "view == tomcatWorkbench.servers",
+          "group": "3_applications"
+        },
+        {
+          "command": "tomcatWorkbench.undeploy",
+          "when": "view == tomcatWorkbench.servers",
+          "group": "3_applications"
+        },
+        {
+          "command": "tomcatWorkbench.logFiles",
+          "when": "view == tomcatWorkbench.servers",
+          "group": "4_data"
+        },
+        {
+          "command": "tomcatWorkbench.cleanup",
+          "when": "view == tomcatWorkbench.servers",
+          "group": "4_data"
+        },
+        {
+          "command": "tomcatWorkbench.remove",
+          "when": "view == tomcatWorkbench.servers",
+          "group": "4_data"
+        }
+      ]
+    },
+    "jsonValidation": [
+      {
+        "fileMatch": "**/.vscode/tomcat.json",
+        "url": "./schemas/tomcat.schema.json"
+      }
+    ]
+  },
+  "dependencies": {
+    "@xmldom/xmldom": "^0.8.11",
+    "undici": "^6.29.1",
+    "yauzl": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/vscode": "~1.96.0",
+    "@types/yauzl": "^2.10.3",
+    "@types/yazl": "^3.3.0",
+    "@vscode/vsce": "^3.0.0",
+    "esbuild": "^0.25.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "yazl": "^3.3.0"
+  }
+}

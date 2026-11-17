@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Tomcat Workbench project configuration",
+  "type": "object",
+  "required": ["version", "instances"],
+  "additionalProperties": false,
+  "properties": {
+    "version": { "const": 1 },
+    "instances": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "name", "tomcatVersion", "java", "ports"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$", "description": "Stable project-unique identifier. Changing it creates a separate local runtime." },
+          "name": { "type": "string", "minLength": 1 },
+          "tomcatVersion": { "type": "string", "pattern": "^(8\\.5|9\\.0|10\\.1|11\\.0)\\.[0-9]+$", "description": "Exact Tomcat release. Never automatically upgraded. Tomcat 8.5 is archived by Apache." },
+          "java": {
+            "type": "object", "additionalProperties": false, "required": ["major", "release"],
+            "properties": { "major": { "enum": [8, 11, 17, 21] }, "release": { "type": "string", "pattern": "^jdk[\\w.+-]+$", "description": "Exact Temurin release name, for example jdk-17.0.13+11. Select using Create Instance." } }
+          },
+          "ports": {
+            "type": "object", "additionalProperties": false, "required": ["http", "shutdown"],
+            "properties": { "http": { "type": "integer", "minimum": 1024, "maximum": 65535 }, "shutdown": { "type": "integer", "minimum": 1024, "maximum": 65535 } }
+          },
+          "jvmArgs": { "type": "array", "items": { "type": "string", "pattern": "^-" }, "default": ["-Xms128m", "-Xmx512m"], "description": "One complete JVM option per element. Managed bootstrap, logging, identity and directory properties are reserved." },
+          "debug": {
+            "type": "object", "additionalProperties": false, "required": ["port"],
+            "description": "Used only by Tomcat: Debug. Start remains normal. JDWP binds to 127.0.0.1 without suspending Tomcat startup.",
+            "properties": {
+              "port": { "type": "integer", "minimum": 1024, "maximum": 65535, "description": "Distinct JDWP port. Debug automatically allocates a declared project port from 5005 when omitted." },
+              "projectName": { "type": "string", "minLength": 1, "description": "Optional Java project name used by Debugger for Java for source resolution." },
+              "sourcePaths": { "type": "array", "items": { "type": "string", "minLength": 1 }, "description": "Optional project-relative Java source directories. Paths cannot escape this project." }
+            }
+          },
+          "environment": { "type": "object", "additionalProperties": { "type": "string" }, "description": "Application environment. Use ${secret:name} for local secrets. Java/Tomcat launch variables are reserved." },
+          "hotReload": {
+            "type": "object", "additionalProperties": false, "required": ["mode"],
+            "description": "Optional automatic reload; absent means off. HotSwap requires an owned Java debug session; redeploy rebuilds the WAR and restarts this Tomcat.",
+            "properties": {
+              "mode": { "enum": ["hotswap", "redeploy"] },
+              "delayMs": { "type": "integer", "minimum": 200, "maximum": 30000, "default": 1000 },
+              "watch": { "type": "array", "items": { "type": "string" }, "default": ["src/**"], "description": "Project-relative globs using /, *, ** and ?. Both modes run only when .java documents are saved in VS Code; other files and filesystem change/create/delete events do not trigger reload." },
+              "exclude": { "type": "array", "items": { "type": "string" }, "description": "Additional excluded globs. Build outputs/control directories are always ignored." }
+            }
+          },
+          "configDir": { "type": "string", "description": "Project-relative native configuration folder. Generate with Initialize Native Configuration; do not point this at an application or project root." },
+          "libraries": { "type": "array", "items": { "type": "string", "pattern": "\\.[jJ][aA][rR]$" }, "description": "Project-relative shared JARs copied into this instance's CATALINA_BASE/lib. File names must be distinct." },
+          "build": {
+            "type": "object", "additionalProperties": false, "required": ["pom", "context"],
+            "description": "Optional managed Maven build. The original POM is preserved; a derived POM builds an isolated local WAR.",
+            "properties": {
+              "pom": { "type": "string", "default": "pom.xml", "description": "Project-relative POM of a single WAR module." },
+              "context": { "type": "string", "pattern": "^/$|^/[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$" },
+              "mavenVersion": { "type": "string", "pattern": "^3\\.[0-9]+\\.[0-9]+$", "default": "3.9.16" },
+              "includeProvided": { "type": "boolean", "default": true, "description": "Include declared provided JARs in WEB-INF/lib, excluding container APIs and compile-time tools." },
+              "skipTests": { "type": "boolean", "default": false },
+              "goal": { "enum": ["package", "install"], "default": "package", "description": "install also installs the derived development artifact/POM into the local Maven repository." },
+              "profiles": { "type": "array", "items": { "type": "string", "pattern": "^!?[A-Za-z0-9_.-]+$" } },
+              "settings": { "type": "string", "minLength": 1, "description": "Maven settings.xml file: absolute path (including outside the project) or path relative to the project. Passed with -s during model resolution and build. Omit to use Maven's default user settings." },
+              "jvmArgs": { "type": "array", "items": { "type": "string" }, "description": "Extra JVM arguments for the managed Maven process." },
+              "excludeArtifacts": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" } },
+              "excludeProvidedGroups": { "type": "array", "description": "Additional groupIds excluded only from automatic provided-dependency staging.", "items": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" } },
+              "dependencies": { "type": "array", "description": "Explicit missing dependency overrides, resolved by Maven using the project's dependency management.", "items": { "type": "object", "additionalProperties": false, "required": ["groupId", "artifactId"], "properties": { "groupId": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" }, "artifactId": { "type": "string", "pattern": "^[A-Za-z0-9_.-]+$" }, "version": { "type": "string", "minLength": 1 }, "scope": { "enum": ["compile", "runtime"] } } } }
+            }
+          },
+          "applications": { "type": "array", "items": { "type": "object", "additionalProperties": false, "required": ["source", "context"], "properties": { "source": { "type": "string", "description": "Project-relative WAR file or application directory. Junctions and symbolic links are not supported." }, "context": { "type": "string", "pattern": "^/$|^/[A-Za-z0-9_-]+(/[A-Za-z0-9_-]+)*$", "description": "Use / for ROOT, or a context such as /app." } } } }
+        }
+      }
+    }
+  }
+}

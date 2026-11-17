@@ -1,0 +1,17 @@
+.git/**
+.gitignore
+.superpowers/**
+.integration-data/**
+node_modules/**
+.npm-cache/**
+.local/**
+.tomcat-workbench/**
+src/**
+test/**
+out/**
+scripts/**
+docs/**
+.vscode/**
+tsconfig.json
+package-lock.json
+*.vsix

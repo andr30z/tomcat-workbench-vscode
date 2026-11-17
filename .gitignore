@@ -1,0 +1,9 @@
+node_modules/
+out/
+dist/
+*.vsix
+.superpowers/
+.integration-data/
+.npm-cache/
+.local/
+.tomcat-workbench/

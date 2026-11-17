@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "instances": [
+    {
+      "id": "tomcat",
+      "name": "tomcat",
+      "tomcatVersion": "8.5.100",
+      "java": {
+        "major": 8,
+        "release": "jdk8u512-b09"
+      },
+      "ports": {
+        "http": 8080,
+        "shutdown": 8005
+      },
+      "jvmArgs": [
+        "-Xms128m",
+        "-Xmx512m"
+      ],
+      "environment": {},
+      "applications": [],
+      "debug": {
+        "port": 5005
+      }
+    }
+  ]
+}
