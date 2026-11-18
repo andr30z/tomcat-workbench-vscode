@@ -1,72 +1,117 @@
 # Tomcat Workbench
 
-Execute versões independentes do Apache Tomcat no VS Code, com um Java próprio por instância, sem instalar Java, Tomcat, Maven, Gradle ou Docker no computador.
+Run independent Apache Tomcat versions in VS Code, with a dedicated Java runtime for each instance, without installing Java, Tomcat, Maven, Gradle, or Docker on your computer.
 
-Compatível com **VS Code Desktop 1.96+ no Windows x64 ou ARM64**, com Tomcat **8.5, 9.0, 10.1 e 11.0**. Os binários para ARM64 dependem da disponibilidade do Temurin para a versão escolhida. A extensão não funciona em VS Code Web, SSH, WSL ou Dev Containers nesta versão.
+**For Maven WAR development, start with `Tomcat: Build and Debug` or `Tomcat: Build and Run`.** These commands compile the project, deploy the WAR, and start or restart Tomcat. Builds use the extension-managed Maven and JDK while preserving your original POM.
 
-## Instalar e começar
+Supports **VS Code Desktop 1.96+ on Windows x64 or ARM64**, with Tomcat **8.5, 9.0, 10.1, and 11.0**. ARM64 binaries depend on Temurin availability for the selected release. VS Code Web, SSH, WSL, and Dev Containers are not supported in this version.
 
-1. No VS Code, execute **Extensions: Install from VSIX...** e selecione `tomcat-workbench-0.9.0.vsix`. O mesmo procedimento atualiza a versão anterior; recarregue o VS Code se solicitado.
-2. Abra uma pasta local e marque o workspace como confiável.
-3. Execute **Tomcat: Create Instance**. Escolha família, versão exata, JDK e portas.
-4. Use o painel **Tomcat Servers**, no Explorer, para iniciar o servidor e consultar o console.
-5. Execute **Tomcat: Deploy Application** para selecionar um WAR ou diretório dentro do projeto. Use `/` para a aplicação raiz.
-6. Execute **Tomcat: Open Application** para abrir o navegador. Sem aplicação publicada, o Tomcat responde 404: exemplos, Manager e página padrão não são instalados nas instâncias.
+## Install and get started
 
-Criar uma instância baixa as distribuições oficiais necessárias; o primeiro provisionamento exige rede. Execuções posteriores usam o cache local sem consultar o catálogo. Downloads têm verificação SHA-512 (Tomcat) ou SHA-256 (Temurin) e não usam instaladores ou privilégios administrativos.
+1. In VS Code, run **Extensions: Install from VSIX...** and select `tomcat-workbench-0.9.0.vsix`. Use the same procedure to update an earlier version; reload VS Code if prompted.
+2. Open a local folder and trust the workspace.
+3. Run **Tomcat: Create Instance**. Choose the Tomcat family, exact release, JDK, and ports.
+4. Choose your main workflow: **[Build and Debug](#build-and-debug)** for development with breakpoints, or **[Build and Run](#build-and-run)** to run without a debugger. Open the Command Palette with **Ctrl+Shift+P**, or use the instance's context menu in the **Tomcat Servers** panel.
+5. On the first run, select the `pom.xml` of a module with `packaging=war` and enter a context path, such as `/backend`. Use `/` to deploy at the root. The extension saves this selection in the `build` section of `.vscode/tomcat.json`.
+6. Follow the build and startup output in the instance console. Then run **Tomcat: Open Application** to open its URL. For `/backend` on port 8080, the base URL is `http://localhost:8080/backend/`; append your application's endpoint path as needed.
 
-## Configuração por projeto
+Creating an instance downloads the required official distributions, so initial provisioning requires network access. Later runs use the local cache without querying the catalog. Downloads are verified with SHA-512 for Tomcat or SHA-256 for Temurin and require neither installers nor administrator privileges.
 
-A extensão cria `.vscode/tomcat.json`, que pode ser versionado. O editor oferece validação e sugestões pelo esquema JSON. Exemplo ilustrativo de versões fixas (use o assistente para selecionar releases disponíveis e atuais):
+## Main workflow
+
+### Build and Debug
+
+**Use `Tomcat: Build and Debug` when developing with breakpoints, variable inspection, and step-by-step execution.**
+
+1. Install Microsoft's **Debugger for Java** and open the project's source code in the workspace.
+2. Run **Tomcat: Build and Debug** and select the instance.
+3. Wait for compilation, WAR deployment, and the automatic debugger connection.
+4. Open the application and send a request that reaches your breakpoint.
+5. After changing the project, run **Build and Debug** again to build and deploy a new WAR. To update when saving Java files, configure [hot reload](#hot-reload).
+
+The command builds **before** stopping the current server. If Maven fails, the previous deployment and server remain available. After a successful build, the extension restarts Tomcat in debug mode and connects the debugger through JDWP on loopback. You do not need to create `launch.json` or configure JDWP arguments manually.
+
+### Build and Run
+
+**Use `Tomcat: Build and Run` to compile and run the application without connecting a debugger.**
+
+1. Run **Tomcat: Build and Run** and select the instance.
+2. Wait for the Maven build and WAR deployment.
+3. Open the application with **Tomcat: Open Application** and follow the logs in the **Tomcat Servers** panel.
+4. Run the command again whenever you need to rebuild and redeploy the application.
+
+As with the debug workflow, a compilation failure preserves the previous running application. After a successful build, the command restarts the instance in normal mode, without enabling JDWP.
+
+### Which command should I use?
+
+| Command | Builds the project? | Purpose |
+| --- | --- | --- |
+| **Tomcat: Build and Debug** | **Yes** | **Development workflow with build, deployment, and an attached debugger.** |
+| **Tomcat: Build and Run** | **Yes** | **Build and deploy in normal execution mode.** |
+| Tomcat: Build WAR | Yes | Generate the WAR without changing the running server. |
+| Tomcat: Preview Build POM | No | Inspect the derived POM used for the build. |
+| Tomcat: Start | No | Start the instance with its configured artifacts. |
+| Tomcat: Debug | No | Start or attach the debugger using the configured artifacts. |
+| Tomcat: Deploy Application | No | Deploy an existing WAR or a directory from the project. |
+
+**Start and Debug do not rebuild the project.** To generate an up-to-date WAR from source, choose **Build and Run** or **Build and Debug**. Use **Deploy Application** for artifacts that are already built.
+
+The main workflow supports Maven WAR modules. If the project uses Nexus, a proxy, or a private repository, configure `build.settings` before the first build; see [Maven build and automatic deployment](#maven-build-and-automatic-deployment). A successful build does not guarantee successful application startup: if startup fails, inspect the console and dependency diagnosis output.
+
+## Project configuration
+
+The extension creates `.vscode/tomcat.json`, which can be committed to version control. The editor provides JSON schema validation and completion. The following example illustrates pinned versions; use the wizard to select available releases:
 
 ```json
 {
   "version": 1,
   "instances": [{
     "id": "backend",
-    "name": "Backend local",
+    "name": "Local backend",
     "tomcatVersion": "10.1.34",
     "java": { "major": 17, "release": "jdk-17.0.13+11" },
     "ports": { "http": 8080, "shutdown": 8005 },
     "debug": { "port": 5005 },
     "jvmArgs": ["-Xms128m", "-Xmx512m", "-Dapp.profile=local"],
-    "environment": { "APP_ENV": "development", "DB_PASSWORD": "${secret:database}" },
-    "libraries": ["drivers/database-driver.jar"],
-    "applications": [{ "source": "target/backend.war", "context": "/backend" }]
+    "environment": { "APP_ENV": "development" },
+    "build": { "pom": "pom.xml", "context": "/backend" },
+    "applications": []
   }]
 }
 ```
 
-- `id` identifica os dados locais; alterar o id cria outra instância. Nome e portas são editáveis.
-- Tomcat e JDK ficam fixos na versão completa, sem atualização automática. A extensão executa Tomcat 8.5 e 9 com Java 8+, 10.1 com Java 11+ e 11 com Java 17+. São oferecidos Temurin 8, 11, 17 e 21; Java 7 não é gerenciado.
-- Tomcat 8.5 pode ser selecionado em **Create Instance**, com versões disponíveis no arquivo oficial da Apache. A família está fora de suporte desde 31/03/2024; sua última versão é 8.5.100. [Referência oficial](https://tomcat.apache.org/whichversion.html)
-- Cada elemento de `jvmArgs` é um argumento completo, sem aspas de shell, inclusive quando contém espaços. As propriedades usadas para diretórios, logging e identificação do processo são reservadas.
-- `environment` é aplicado somente ao processo da instância. Variáveis herdadas que alteram o Java/Tomcat são removidas. `JAVA_HOME`, `JRE_HOME`, `JAVA_OPTS`, `CATALINA_*`, opções globais Java e classpath não podem sobrescrever o gerenciamento da extensão.
-- `libraries` copia JARs com nomes distintos para o `lib` exclusivo da instância. As bibliotecas deixam de ser carregadas quando removidas da lista e o servidor é reiniciado.
-- Caminhos são relativos ao projeto. Fontes de deploy e configurações não podem escapar da pasta; links simbólicos e junctions não são suportados nesses arquivos.
-- Portas devem ser diferentes entre todas as instâncias do projeto, entre 1024 e 65535. Conflitos com outros processos produzem erro; não há substituição silenciosa de porta.
+- `id` identifies the local runtime data. Changing it creates another instance. Names and ports are editable.
+- Tomcat and the JDK are pinned to full release versions and are never upgraded automatically. The extension runs Tomcat 8.5 and 9 with Java 8+, Tomcat 10.1 with Java 11+, and Tomcat 11 with Java 17+. Temurin 8, 11, 17, and 21 are offered; Java 7 is not managed.
+- Tomcat 8.5 is available in **Create Instance**, with releases from the official Apache archive. This family reached end of support on March 31, 2024; its final release is 8.5.100. [Official reference](https://tomcat.apache.org/whichversion.html)
+- Each `jvmArgs` entry is one complete argument, without shell quoting, even if it contains spaces. Properties used for directories, logging, and process identity are reserved.
+- `environment` applies only to the instance process. Inherited variables that override Java or Tomcat are removed. `JAVA_HOME`, `JRE_HOME`, `JAVA_OPTS`, `CATALINA_*`, global Java options, and classpath cannot override the extension's runtime management.
+- `libraries` copies JARs with distinct filenames into the instance's private `lib` directory. Removing a library from the list takes effect after restarting the server.
+- Paths are relative to the project. Deployment sources and configuration must remain inside the project; symbolic links and junctions are not supported for those files.
+- Ports must be distinct across all instances in the project and range from 1024 to 65535. Conflicts with other processes produce an error; ports are never silently replaced.
 
-Pare o servidor antes de editar a configuração. Alterações manuais são aplicadas na próxima inicialização; não há hot reload. WARs devem estar construídos previamente: a extensão executa o servidor, sem compilar o projeto.
+In the build workflow, `applications` receives the published WAR snapshot after compilation. You do not need to fill it in manually. To use an existing artifact with Start/Debug, select it through **Deploy Application**.
 
-## Configuração nativa avançada
+Changes to Java, ports, JVM arguments, environment variables, and shared libraries require a new instance startup. Application hot reload is optional and runs only when Java files are saved; it does not apply server configuration changes.
 
-Execute **Tomcat: Initialize Native Configuration** para gerar arquivos da versão selecionada em `.vscode/tomcat/<id>` e cadastrar `configDir`. A pasta contém `server.xml`, `web.xml`, `context.xml`, usuários, logging e configurações de contexto. Certificados e arquivos auxiliares podem ser incluídos nela, mas não versione chaves privadas ou credenciais.
+## Advanced native configuration
 
-Os modelos usam `${http.port}`, `${shutdown.port}` e `${shutdown.token}`. Os dois primeiros devem corresponder a `ports` no JSON; valores contraditórios impedem a inicialização. O token de parada é gerado localmente. O XML compartilhado nunca recebe esse token.
+Run **Tomcat: Initialize Native Configuration** to generate configuration files for the selected version in `.vscode/tomcat/<id>` and register `configDir`. The directory contains `server.xml`, `web.xml`, `context.xml`, users, logging, and context configuration. You may include certificates and supporting files, but do not commit private keys or credentials.
 
-É possível configurar TLS, conectores adicionais, recursos JNDI e contextos usando XML nativo. Esta versão gerencia **um Host por instância, com `appBase="webapps"`** e um conector HTTP na porta declarada. A porta de shutdown deve permanecer em loopback. Os demais conectores também começam em loopback, mas podem ser alterados explicitamente no XML. Portas adicionais são verificadas antes da execução.
+Templates use `${http.port}`, `${shutdown.port}`, and `${shutdown.token}`. The first two must match `ports` in the JSON configuration; conflicting values prevent startup. The shutdown token is generated locally and is never written into shared XML templates.
 
-Os modelos têm um marcador de família. Mudar entre 8.5, 9, 10.1 e 11 exige gerar modelos correspondentes ou restaurar a versão anterior; não há conversão automática de XML. Gerar novamente preserva a pasta anterior em um backup adjacente. Trocar uma versão exata também preserva a configuração de execução anterior em `backups` nos dados locais.
+Native XML supports TLS, additional connectors, JNDI resources, and contexts. This version manages **one Host per instance, with `appBase="webapps"`**, and an HTTP connector on the declared port. The shutdown listener must remain on loopback. Other connectors also start on loopback, but you can change them explicitly in XML. Additional ports are checked before startup.
 
-O Java é iniciado diretamente com o Bootstrap oficial do Tomcat. `setenv.bat`, scripts externos e serviços Windows não são executados; configure argumentos e ambiente no JSON. XML com DOCTYPE/entidades externas é recusado.
+Templates include a Tomcat family marker. Switching between 8.5, 9, 10.1, and 11 requires generating matching templates or restoring the previous version; XML is not converted automatically. Regenerating templates preserves the previous directory in an adjacent backup. Changing an exact release also backs up the previous runtime configuration under `backups` in the local instance data.
 
-## Build Maven e deploy automático
+Java starts directly through the official Tomcat Bootstrap. `setenv.bat`, external scripts, and Windows services are not executed; configure arguments and environment variables in JSON. XML containing DOCTYPE declarations or external entities is rejected.
 
-Use **Tomcat: Build and Run** ou **Tomcat: Build and Debug** para construir a aplicação antes de publicá-la. Na primeira execução, selecione o POM do módulo WAR e o contexto. **Tomcat: Build WAR** gera somente o artefato, preservando o servidor em execução; **Tomcat: Preview Build POM** resolve o modelo Maven e abre o POM derivado para consulta.
+## Maven build and automatic deployment
 
-A extensão baixa e verifica seu próprio **Maven 3.9.16**, usa o JDK da instância e não requer `mvn` no PATH. Maven e JDK ficam em cache. A resolução das dependências respeita os repositórios e perfis do projeto e o `settings.xml` padrão do usuário. Configurações globais de outra instalação de Maven não são herdadas.
+**Build and Debug** and **Build and Run** follow the same sequence: resolve the Maven model, generate a derived POM, compile and package the WAR, deploy the snapshot, and restart the instance in the selected mode. Deployment starts only after a successful build. Select the WAR module POM and context on the first run; subsequent runs reuse the saved configuration.
 
-Configuração mínima por instância:
+The extension downloads and verifies its own **Maven 3.9.16**, uses the instance's JDK, and does not require `mvn` on PATH. Maven and JDK distributions are cached. Dependency resolution respects the project's repositories and profiles and the user's default `settings.xml`. Global settings from another Maven installation are not inherited.
+
+Minimal configuration per instance:
 
 ```json
 "build": {
@@ -75,11 +120,11 @@ Configuração mínima por instância:
 }
 ```
 
-O POM original é lido pelo Maven Help Plugin para obter o modelo efetivo, incluindo herança e perfis ativos. Um POM derivado é gerado ao lado dele para preservar a base dos caminhos relativos; esse arquivo temporário é removido ao final. A saída convencional, inclusive caminhos herdados de perfis/execuções sob o diretório de build, é redirecionada para `.tomcat-workbench/<id>/build`. A limpeza é feita pela extensão somente nesse diretório verificado, sem executar regras `clean` herdadas. Plugins personalizados continuam executando código do projeto e podem ter efeitos próprios: o build exige workspace confiável e não é um sandbox.
+The Maven Help Plugin reads the original POM to obtain the effective model, including inheritance and active profiles. A derived POM is generated beside it to preserve relative path resolution; this temporary file is removed afterward. Conventional output, including inherited profile/execution paths under the build directory, is redirected to `.tomcat-workbench/<id>/build`. The extension cleans only this verified directory, without running inherited Maven `clean` rules. Custom plugins still execute project code and may have their own side effects: the build requires a trusted workspace and is not a sandbox.
 
-Por padrão, dependências `compile`/`runtime` seguem o empacotamento Maven normal e as `provided` são incluídas automaticamente em `WEB-INF/lib`, com exclusões para Tomcat embutido, APIs do container e ferramentas como Lombok/QueryDSL APT. Os testes não são copiados. Quando o projeto usa `spring-boot-starter-log4j2`, o WAR local exclui bindings concorrentes conhecidos (`slf4j-jdk14`, Logback e a ponte `log4j-to-slf4j`). O build usa versões fixas dos plugins Help 3.5.1, Compiler 3.11.0, Dependency 3.6.1 e WAR 3.4.0, compatíveis com Java 8.
+By default, `compile` and `runtime` dependencies follow normal Maven packaging, while `provided` dependencies are automatically included in `WEB-INF/lib`, excluding embedded Tomcat, container APIs, and tools such as Lombok/QueryDSL APT. Test dependencies are not copied. When the project uses `spring-boot-starter-log4j2`, the local WAR excludes known competing bindings: `slf4j-jdk14`, Logback, and the `log4j-to-slf4j` bridge. Builds pin the Help 3.5.1, Compiler 3.11.0, Dependency 3.6.1, and WAR 3.4.0 plugins, which support Java 8.
 
-Opções adicionais:
+Additional options:
 
 ```json
 "build": {
@@ -90,30 +135,30 @@ Opções adicionais:
   "skipTests": false,
   "goal": "package",
   "profiles": ["local"],
-  "settings": "C:/Users/andre.oliveira/.m2/settings.xml",
+  "settings": "C:/Users/your-user/.m2/settings.xml",
   "dependencies": [
     { "groupId": "org.apache.httpcomponents", "artifactId": "httpclient" }
   ]
 }
 ```
 
-`dependencies` inclui ou ajusta dependências somente no POM derivado. A versão pode vir do dependency management original ou ser informada explicitamente. A extensão não adivinha bibliotecas ausentes de toda a árvore Maven. `excludeArtifacts` exclui artifactIds adicionais do WAR; `excludeProvidedGroups` restringe apenas a cópia adicional de grupos `provided`. `jvmArgs` permite opções extras da JVM do Maven. Perfis podem ser ativados por nome ou desativados com `!nome`.
+`dependencies` adds or adjusts dependencies only in the derived POM. Versions may come from the original dependency management or be specified explicitly. The extension does not guess libraries missing from the entire Maven dependency tree. `excludeArtifacts` removes additional artifact IDs from the WAR; `excludeProvidedGroups` limits only the extra copying of `provided` groups. `jvmArgs` supplies additional Maven JVM options. Profiles can be activated by name or disabled with `!name`.
 
-`build.settings` indica o arquivo XML, e não a pasta. Aceita caminho absoluto (inclusive fora do projeto) ou relativo à raiz do projeto, como `.mvn/settings.xml`. No Windows, use `/` ou escape as barras como `C:\\Users\\usuario\\.m2\\settings.xml`. O mesmo arquivo é passado com `-s` na resolução do modelo e no build, respeitando mirrors, servidores/credenciais, proxies, perfis e `localRepository` do Maven. O arquivo não é copiado nem alterado pela extensão; sem esse campo, o Maven usa seu settings padrão. Arquivos ausentes ou caminhos para pastas geram erro antes do build.
+`build.settings` points to the XML file, not its directory. It accepts an absolute path, including one outside the project, or a path relative to the project root, such as `.mvn/settings.xml`. On Windows, use `/` or escape backslashes, as in `C:\Users\your-user\.m2\settings.xml`. The same file is passed with `-s` during model resolution and the build, respecting Maven mirrors, servers/credentials, proxies, profiles, and `localRepository`. The extension neither copies nor edits it. Without this field, Maven uses its default settings. Missing files or paths pointing to directories produce an error before the build.
 
-O objetivo padrão é `package`. `install` é opcional e também instala o artefato de desenvolvimento e seu POM derivado no repositório Maven local. Os testes são executados por padrão; `skipTests: true` desativa sua execução para o build local. A primeira resolução requer acesso aos repositórios; o Maven usa os caches disponíveis nas execuções seguintes. Proxy/certificados do processo Maven devem ser configurados nos settings ou argumentos JVM apropriados; o proxy dos downloads da extensão é independente.
+The default goal is `package`. The optional `install` goal also installs the development artifact and its derived POM into the local Maven repository. Tests run by default; `skipTests: true` skips test execution for the local build. Initial resolution requires repository access; later runs use available caches. Configure Maven process proxies/certificates through settings or appropriate JVM arguments; the extension's download proxy configuration is separate.
 
-Um build bem-sucedido cria uma cópia imutável do WAR em `.tomcat-workbench/<id>/artifacts`. **Build and Run/Debug** atualiza o deploy somente depois do sucesso e reinicia a instância. Uma falha de compilação preserva o deploy e o servidor anteriores. O comando pode ser cancelado e tem limite de 20 minutos por execução Maven; no Windows, o cancelamento encerra a árvore de processos capturada. Builds ativos são cancelados ao desativar a extensão. Locks também registram PIDs dos processos Maven para evitar que outra janela limpe uma saída ainda em uso após falha do host.
+A successful build creates an immutable WAR copy in `.tomcat-workbench/<id>/artifacts`. **Build and Run/Debug** updates deployment only after success and restarts the instance. Compilation failures preserve the previous deployment and server. Commands can be cancelled and have a 20-minute limit per Maven invocation. On Windows, cancellation terminates the captured process tree. Active builds are cancelled when the extension deactivates. Locks also record Maven process IDs so another window cannot clean output still in use after an extension host failure.
 
-O último POM derivado fica em `last-pom.xml` e o resultado em `last-build.json`, na pasta da instância em `.tomcat-workbench`. Os snapshots antigos são preservados para não invalidar deployments que ainda os referenciam; remova-os manualmente quando não forem mais utilizados. A pasta contém um `.gitignore` local. Uma interrupção abrupta do host pode deixar um POM temporário ao lado do original; confirme que não há build em execução antes de removê-lo.
+The last derived POM is saved as `last-pom.xml`, and the result as `last-build.json`, under the instance's `.tomcat-workbench` directory. Old snapshots are retained so deployments referencing them remain valid; remove them manually when no longer needed. The directory includes a local `.gitignore`. An abrupt host interruption may leave a temporary POM beside the original; verify that no build is running before removing it.
 
-Esta versão aceita módulos Maven com `packaging=war`. Para projetos com vários módulos, selecione o POM de um módulo WAR dentro da pasta aberta; construir o reactor inteiro ainda não é suportado. Dependências locais de outros módulos precisam estar disponíveis no repositório Maven.
+This version supports Maven modules with `packaging=war`. For multi-module projects, select a WAR module POM inside the open folder; building the entire reactor is not yet supported. Local dependencies on other modules must already be available in the Maven repository.
 
 ### Hot reload
 
-Execute **Tomcat: Configure Hot Reload** para escolher **Off**, **HotSwap** ou **Rebuild and redeploy** por instância. Configure o intervalo após o último salvamento Java (200 a 30000 ms, padrão 1000). O recurso fica desligado até ser configurado e só age quando a instância está em execução. Somente o salvamento de documentos `.java` no VS Code aciona o hot reload, em ambos os modos, incluindo Save All e Auto Save. Salvar XML, HTML, CSS, JavaScript, properties ou pom.xml não aciona o mecanismo, mesmo com padrões watch amplos. Mudanças externas no disco e eventos de criação/remoção também não o acionam. Salvamentos Java durante uma operação são agrupados para uma atualização posterior.
+Run **Tomcat: Configure Hot Reload** to choose **Off**, **HotSwap**, or **Rebuild and redeploy** per instance. Set the delay after the last Java save from 200 to 30000 ms; the default is 1000 ms. The feature is off until configured and runs only while the instance is active. In both modes, only saving `.java` documents in VS Code triggers hot reload, including Save All and Auto Save. Saving XML, HTML, CSS, JavaScript, properties, or `pom.xml` does not trigger it, even with broad watch patterns. External disk changes and file creation/deletion events do not trigger it either. Java saves during an operation are grouped into one follow-up update.
 
-Exemplo no nível da instância, ao lado de `build` e `debug`:
+Example at the instance level, alongside `build` and `debug`:
 
 ```json
 "hotReload": {
@@ -124,40 +169,40 @@ Exemplo no nível da instância, ao lado de `build` e `debug`:
 }
 ```
 
-**HotSwap:** inicie **Build and Debug** ou **Debug**, aguarde a conexão do debugger e salve um arquivo Java. A extensão solicita uma compilação incremental ao suporte Java do VS Code e envia as classes modificadas para a sessão de debug dessa instância, sem reiniciar o Tomcat. Também há o comando **Tomcat: Apply HotSwap**, independentemente de o modo automático estar habilitado. Requer **Language Support for Java by Red Hat**, **Debugger for Java** e o projeto importado no suporte Java, com seu classpath válido. Essa compilação usa o compilador/classpath do suporte Java, não o Maven gerenciado da extensão; um projeto que compila apenas com adaptações do POM derivado pode precisar ajustar sua importação Java antes de usar HotSwap.
+**HotSwap:** start **Build and Debug** or **Debug**, wait for the debugger to attach, and save a Java file. The extension requests an incremental build from VS Code's Java language support and sends changed classes to that instance's debug session without restarting Tomcat. You can also run **Tomcat: Apply HotSwap**, whether or not automatic mode is enabled. This requires **Language Support for Java by Red Hat**, **Debugger for Java**, and a project imported into Java language support with a valid classpath. This compilation uses Java language support's compiler and classpath, rather than extension-managed Maven. A project that builds only through derived-POM adaptations may need its Java project import adjusted before using HotSwap.
 
-Alterações no corpo de métodos são o caso usual. Adicionar/remover membros, mudar assinaturas ou hierarquia pode ser rejeitado pela JVM. A extensão registra o erro e indica **Build and Debug**; não reinicia automaticamente após uma rejeição. Alterações em XML, recursos, POM, HTML/CSS/JS e classes removidas exigem rebuild/redeploy; o modo HotSwap monitora somente arquivos `.java`. A definição do WAR em disco não é atualizada por HotSwap: um futuro reinício usa o último WAR/deploy, salvo se você executar um novo build. As configurações globais `java.debug.settings.hotCodeReplace` e `java.autobuild.enabled` não são alteradas pela extensão. Se outro mecanismo do debugger já aplicou a alteração, não haverá classes pendentes no pedido da extensão.
+Method-body changes are the usual supported case. Adding or removing members, changing signatures, or changing class hierarchy may be rejected by the JVM. The extension logs the failure and suggests **Build and Debug**; it does not restart automatically after rejection. Changes to XML, resources, POMs, HTML/CSS/JS, and deleted classes require a rebuild/redeploy; HotSwap monitors only `.java` saves. HotSwap does not update the WAR on disk: a later restart uses the last WAR/deployment unless you run another build. The extension does not change global `java.debug.settings.hotCodeReplace` or `java.autobuild.enabled` settings. If another debugger mechanism has already applied the change, the extension's request may find no pending changed classes.
 
-**Rebuild/redeploy:** use `"mode": "redeploy"` e configure o bloco `build`. Após salvar um arquivo Java monitorado, a extensão compila um novo WAR com Maven gerenciado e reinicia esta instância do Tomcat, mantendo o modo normal/debug anterior. Sessões HTTP e estado em memória podem ser perdidos. Compilação malsucedida preserva o servidor e o último deploy bem-sucedido. Para atualizar recursos estáticos ou configurações sem salvar Java, execute Build and Run/Debug manualmente. Não há cópia incremental nem publish pelo Manager nesta versão.
+**Rebuild/redeploy:** use `"mode": "redeploy"` and configure `build`. After saving a watched Java file, the extension builds a new WAR with managed Maven and restarts this Tomcat instance, preserving its previous normal/debug mode. HTTP sessions and in-memory state may be lost. Compilation failures preserve the server and last successful deployment. To update static resources or configuration without saving Java, run Build and Run/Debug manually. This version does not provide incremental copying or Manager-based publishing.
 
-`watch` e `exclude` aceitam caminhos relativos ao projeto com `/`, `*`, `**` e `?`. O padrão é `src/**`; para um módulo Maven em subpasta, informe seus caminhos explicitamente. Sempre são ignorados diretórios `target`, `.tomcat-workbench`, `.git`, `.vscode`, `.local`, `node_modules`, `dist`, `out`, `coverage` e POMs temporários da extensão. Um arquivo excluído por esses filtros internos não pode ser reabilitado em `watch`.
+`watch` and `exclude` accept project-relative paths with `/`, `*`, `**`, and `?`. The default is `src/**`; specify module paths explicitly for Maven modules in subdirectories. The following directories are always ignored: `target`, `.tomcat-workbench`, `.git`, `.vscode`, `.local`, `node_modules`, `dist`, `out`, and `coverage`, as well as the extension's temporary POMs. A file excluded by these internal filters cannot be enabled through `watch`.
 
-**Stop** cancela trabalho ativo e pendente; mudanças de configuração/removal invalidam tarefas antigas. Operações de deploy/templates/start/restart não concorrem com o reload da mesma instância. Desativar Hot Reload cancela trabalho pendente e impede a publicação/reinicialização automática ainda não iniciada. Os diagnósticos e resultados ficam no console da instância. Não há garantia de rollback de um erro de inicialização ocorrido depois de um build bem-sucedido.
+**Stop** cancels active and pending work. Configuration changes and instance removal invalidate old tasks. Deployment, template, start, and restart operations do not run concurrently with reload for the same instance. Turning Hot Reload off cancels pending work and prevents automatic publication/restarts that have not yet started. Diagnosis and results appear in the instance console. Rollback is not guaranteed for application startup errors after a successful build.
 
-Referências do debugger: [Hot Code Replace e limitações](https://github.com/microsoft/vscode-java-debug/wiki/Hot-Code-Replace), [compilação incremental usada pelo debugger](https://github.com/microsoft/vscode-java-debug/blob/main/src/build.ts).
+Debugger references: [Hot Code Replace and its limitations](https://github.com/microsoft/vscode-java-debug/wiki/Hot-Code-Replace), [the debugger's incremental build implementation](https://github.com/microsoft/vscode-java-debug/blob/main/src/build.ts).
 
-### Diagnóstico de dependências ausentes
+### Missing dependency diagnosis
 
-O monitoramento dos logs permanece ativo mesmo sem `build.dependencies`. Se Build and Run/Debug detectar classes ausentes na inicialização, o diagnóstico abre automaticamente após a liberação da operação, sem depender de clicar em uma notificação. Se outro build começar enquanto você escolhe a instância ou aceita a oferta, o diagnóstico fica pendente e abre depois. O comando manual também aguarda um build em andamento. Remover uma dependência pode fazer a aplicação falhar novamente, mas não desativa sua identificação nem exige restaurar a configuração manualmente. A inclusão sugerida continua sujeita a confirmação.
+Log monitoring stays active even without `build.dependencies`. If Build and Run/Debug detects missing classes during startup, diagnosis opens automatically after the operation is released, without requiring a notification click. If another build starts while you select the instance or accept a recovery offer, diagnosis waits and opens afterward. The manual command also waits for an ongoing build. Removing a dependency may make startup fail again, but does not disable detection or require restoring configuration manually. Suggested additions still require confirmation.
 
-Ao encontrar `ClassNotFoundException` ou `NoClassDefFoundError` nos logs do Tomcat, Build and Run/Debug abre automaticamente **Diagnose Dependencies** após a tentativa de inicialização. Para execuções manuais de Start/Debug, aparece uma oferta modal de diagnóstico. O console registra as etapas de detecção, agendamento e abertura. Escolha o provedor e confirme a alteração para que a biblioteca seja salva em `build.dependencies`; cancelar mantém o arquivo intacto. Também é possível executar **Tomcat: Diagnose Missing Dependencies** pela paleta ou pelo menu da instância. Depois de recarregar o VS Code, o comando consulta o último 1 MiB do console persistido quando não há exceções na sessão atual.
+When `ClassNotFoundException` or `NoClassDefFoundError` appears in Tomcat logs, Build and Run/Debug opens **Diagnose Dependencies** automatically after the startup attempt. Manual Start/Debug runs show a modal recovery offer. The console records detection, scheduling, and opening. Choose the provider and confirm the change to save the library in `build.dependencies`; cancelling leaves the file unchanged. You can also run **Tomcat: Diagnose Missing Dependencies** from the Command Palette or the instance menu. After reloading VS Code, the command reads the last 1 MiB of the persisted console when there are no exceptions in the current session.
 
-O diagnóstico resolve o modelo efetivo e consulta `settings.localRepository` usando o Maven/JDK da instância e o `build.settings` configurado. Em seguida, busca a classe exata dentro dos JARs já presentes nesse repositório. As versões do `dependencyManagement` aparecem primeiro. Selecione o provedor compatível para cada classe; Escape ignora a classe. A extensão mostra as coordenadas e pede confirmação para **Save Only**, **Build and Run** ou **Build and Debug**. A versão selecionada fica explícita em `build.dependencies`, inclusive quando coincide com a gerenciada, garantindo que o próximo build use o JAR escolhido. O POM original permanece preservado.
+Diagnosis resolves the effective model and evaluates `settings.localRepository` using the instance's Maven/JDK and configured `build.settings`. It then searches for the exact class inside JARs already present in that repository. Versions from `dependencyManagement` appear first. Select a compatible provider for each class; Escape skips the class. The extension displays the coordinates and asks you to confirm **Save Only**, **Build and Run**, or **Build and Debug**. The selected version is pinned explicitly in `build.dependencies`, even when it matches a managed version, so the next build uses the selected JAR. The original POM is preserved.
 
-A busca pode ser cancelada, ignora links, JARs com classifier, componentes do Tomcat/APIs do contêiner e ferramentas, e inspeciona até 30 mil JARs. Falhas de leitura e limite atingido aparecem no console. A busca de classes não baixa artefatos nem adiciona todas as entradas do dependencyManagement. A resolução do modelo pode baixar plugins/POMs pelo Maven. Se a classe não existir no cache, consulte a dependência com quem mantém a aplicação; nenhuma coordenada é inventada. Erros de inicialização estática e incompatibilidades de versões exigem diagnóstico próprio. Este fluxo analisa os erros de execução; ainda não faz análise estática de bytecode antes do deploy.
+The search is cancellable, skips links, classified JARs, Tomcat components/container APIs, and tools, and inspects up to 30,000 JARs. Read failures and scan limits appear in the console. Class discovery does not download artifacts or add every entry in dependency management. Model resolution may download Maven plugins and POMs. If the class is absent from the cache, consult the application's maintainers; coordinates are never invented. Static initialization errors and version incompatibilities require their own investigation. This workflow analyzes runtime errors; it does not perform static bytecode analysis before deployment.
 
-**Migração de configurações legadas:** bibliotecas declaradas em `libraries` e o XML nativo continuam ativos. Para um WAR completo, remova bibliotecas compartilhadas de Spring/Swagger e restaure o classloader padrão, evitando duplicidade com `WEB-INF/lib`. Recursos JNDI e bibliotecas realmente pertencentes ao servidor, como um driver JDBC de datasource, permanecem configurações do ambiente.
+**Migrating legacy configuration:** `libraries` entries and native XML remain active. For a self-contained WAR, remove shared Spring/Swagger libraries and restore the default classloader to avoid duplication with `WEB-INF/lib`. JNDI resources and libraries that belong to the server, such as a datasource's JDBC driver, remain environment configuration.
 
-## Depurar a aplicação
+## Debugging the application
 
-1. Instale **Debugger for Java**, da Microsoft, e abra o código-fonte da aplicação no workspace. O Extension Pack for Java também inclui esse depurador.
-2. No painel **Tomcat Servers**, use o botão **Debug** ou execute **Tomcat: Debug** pela Command Palette.
-3. A extensão inicia a JVM com JDWP em `127.0.0.1` e conecta automaticamente o depurador Java. Não é necessário criar `launch.json` ou configurar JDWP em `jvmArgs`.
-4. Coloque breakpoints no código correspondente ao WAR/diretório publicado e faça uma requisição à aplicação. O artefato deve corresponder ao código aberto e conter informações de depuração.
+1. Install Microsoft's **Debugger for Java** and open the application's source code in the workspace. The Extension Pack for Java also includes this debugger.
+2. To compile current source before debugging, run **Tomcat: Build and Debug**. If the artifact is already up to date and deployed, use **Tomcat: Debug** to start or attach the session without another build.
+3. The extension starts the JVM with JDWP on `127.0.0.1` and automatically attaches the Java debugger. You do not need `launch.json` or JDWP options in `jvmArgs`.
+4. Set breakpoints in source corresponding to the deployed WAR/directory and send a request to the application. The artifact must match the open source and contain debugging information.
 
-Se o servidor já estiver executando normalmente, a interface oferece reiniciá-lo em debug. Se já estiver em debug, o comando conecta novamente sem reiniciá-lo. **Stop Debug (Disconnect)** e o botão de desconexão do VS Code encerram somente a sessão do depurador; o Tomcat continua executando com sua porta JDWP em loopback. Para encerrar o servidor, use **Tomcat: Stop**. Para voltar à execução sem JDWP, use **Stop** seguido de **Start**.
+When using **Tomcat: Debug**, a server already running in normal mode prompts for a restart in debug mode. If it is already in debug mode, the command reconnects without restarting it. **Stop Debug (Disconnect)** and VS Code's disconnect button end only the debugger session; Tomcat continues running with its loopback JDWP port. Use **Tomcat: Stop** to shut down the server. To return to execution without JDWP, use **Stop** followed by **Start**.
 
-O primeiro comando Debug atribui uma porta livre entre as portas declaradas no projeto, começando em 5005, e a salva em `tomcat.json`. A disponibilidade no Windows é verificada antes de iniciar a JVM. Você pode configurar cada instância:
+The first Debug command assigns a port that does not conflict with the project's declared ports, starting at 5005, and saves it in `tomcat.json`. Port availability on Windows is checked before launching the JVM. You can configure each instance:
 
 ```json
 "debug": {
@@ -167,37 +212,37 @@ O primeiro comando Debug atribui uma porta livre entre as portas declaradas no p
 }
 ```
 
-Somente `port` é obrigatório quando o bloco `debug` é informado; `projectName` e `sourcePaths` ajudam a resolver fontes quando há vários projetos Java. Os diretórios são relativos ao projeto. A porta deve ser diferente das portas HTTP, shutdown e debug das outras instâncias. Alterações na porta entram em vigor após reiniciar; reconectar a uma JVM recuperada usa sua porta efetiva.
+Only `port` is required when the `debug` section is present. `projectName` and `sourcePaths` help resolve sources when several Java projects are open. Directories are relative to the project. The debug port must differ from HTTP, shutdown, and other instances' debug ports. Port changes take effect after restarting; reconnecting to a recovered JVM uses its actual port.
 
-**Start** continua iniciando sem debug, mesmo com o bloco `debug` configurado. **Restart** e operações de deploy que reiniciam um servidor em debug preservam esse modo e reconectam o depurador. Se o attach falhar após uma nova inicialização de debug, a extensão encerra a JVM que acabou de iniciar; uma instância em debug que já existia é preservada.
+**Start** still launches without debug even when `debug` is configured. **Restart** and deployment operations that restart a debug server preserve that mode and reconnect the debugger. If attaching fails after a new debug startup, the extension terminates the JVM it just launched; a pre-existing debug instance is preserved.
 
-Remova argumentos JDWP manuais (`-agentlib:jdwp` ou `-Xrunjdwp`) de `jvmArgs` antes de usar o Debug integrado. A JVM inicia com `suspend=n`; esta versão conecta após a inicialização do Tomcat e não pausa sua inicialização para capturar breakpoints anteriores ao attach. Não há compilação automática nem garantia de Hot Code Replace além do que o depurador Java e a JVM suportam.
+Remove manual JDWP arguments such as `-agentlib:jdwp` or `-Xrunjdwp` from `jvmArgs` before using integrated debugging. The JVM starts with `suspend=n`: this version attaches after Tomcat startup and does not suspend initialization to catch breakpoints before attachment. **Build and Debug** compiles before startup; updates on save depend on optional [hot reload](#hot-reload) configuration. HotSwap remains subject to Java debugger and JVM limitations.
 
-## Segredos
+## Secrets
 
-Execute **Tomcat: Set Project Secret** e referencie o nome em valores de `environment`, por exemplo `${secret:database}`. Cada computador cadastra seus próprios valores no SecretStorage do VS Code. Segredos ausentes impedem o início.
+Run **Tomcat: Set Project Secret** and reference the secret name in `environment` values, such as `${secret:database}`. Each computer stores its own values in VS Code SecretStorage. Missing secrets prevent startup.
 
-A extensão remove esses valores conhecidos do console que grava em `logs/console.log`. Logs gerados pela aplicação ou pelo próprio Tomcat podem conter dados sensíveis; a extensão não controla o que a aplicação grava.
+The extension redacts these known values from the console it writes to `logs/console.log`. Logs generated by the application or Tomcat itself may contain sensitive data; the extension does not control what the application logs.
 
-## Operação, recuperação e dados locais
+## Operation, recovery, and local data
 
-O painel e a Command Palette oferecem iniciar, parar, reiniciar, console, pasta de logs, navegador, deploy, undeploy e remoção da instância. Deploy e undeploy usam uma área de preparação e são feitos com o servidor parado; se ele estiver executando, a interface oferece parada e reinício. Os arquivos-fonte não são removidos.
+The panel and Command Palette provide start, stop, restart, console, log directory, browser, deploy, undeploy, and instance removal actions. Deploy and undeploy use a staging area and run with the server stopped. If it is running, the interface offers to stop and restart it. Source files are not removed.
 
-Distribuições e instâncias ficam no `globalStorage` do VS Code, sob `local-development.tomcat-workbench`. Cada caminho de projeto e id tem diretórios separados para configuração, aplicações, bibliotecas, logs, trabalho e temporários. Os binários são compartilhados por versão e não são editados.
+Distributions and instances live in VS Code's `globalStorage`, under `local-development.tomcat-workbench`. Each project path and instance ID has separate directories for configuration, applications, libraries, logs, work, and temporary files. Binaries are shared by release version and are not edited.
 
-Locks impedem que duas janelas operem a mesma instância simultaneamente. No encerramento normal da extensão, os servidores são parados. Após falha do VS Code, a recuperação confere PID, executável, instante de criação e argumento de identificação antes de assumir um processo existente. Não é necessário instalar um serviço auxiliar.
+Locks prevent two windows from operating on the same instance simultaneously. Normal extension shutdown stops the servers. After a VS Code failure, recovery checks the PID, executable, creation time, and ownership argument before adopting an existing process. No helper service installation is required.
 
-Se uma falha ocorrer antes de gravar o proprietário de um lock ou confirmar a identidade do processo, a extensão mantém os dados e exige inspeção manual. Feche todas as janelas do VS Code, confira o processo indicado no `process.json` e só remova locks órfãos depois de confirmar que nenhuma operação os utiliza. Um PID reutilizado pode exigir esse procedimento conservador.
+If a failure occurs before recording lock ownership or verifying process identity, the extension retains the data and requires manual inspection. Close all VS Code windows, inspect the process recorded in `process.json`, and remove orphaned locks only after confirming that no operation still uses them. A reused PID may require this conservative procedure.
 
-**Tomcat: Remove Local Instance Data** apaga dados de execução de uma instância parada, mantendo configuração do projeto e distribuições. **Remove Instance** remove a declaração do projeto e preserva logs e modelos. Para desinstalação completa, pare todas as instâncias, desinstale a extensão e remova sua pasta de `globalStorage`; certificados/segredos devem ser tratados conforme sua política local.
+**Tomcat: Remove Local Instance Data** deletes runtime data for a stopped instance while preserving project configuration and distributions. **Remove Instance** removes the project declaration and preserves logs and templates. To uninstall completely, stop all instances, uninstall the extension, and remove its `globalStorage` directory. Handle certificates and secrets according to your local policy.
 
-## Rede
+## Network
 
-São usados os fornecedores oficiais `archive.apache.org`, `dlcdn.apache.org`, `api.adoptium.net` e os assets do GitHub/Adoptium. A extensão considera `http.proxy` do VS Code ou as variáveis de proxy do ambiente. A validação TLS permanece habilitada; configure a CA corporativa pelo mecanismo do Node (`NODE_EXTRA_CA_CERTS`, antes de iniciar o VS Code), quando necessário. Importação manual offline de distribuições fica para uma versão futura.
+Downloads use official providers: `archive.apache.org`, `dlcdn.apache.org`, `api.adoptium.net`, and GitHub/Adoptium assets. The extension respects VS Code's `http.proxy` setting or environment proxy variables. TLS verification remains enabled; configure a corporate CA through Node's `NODE_EXTRA_CA_CERTS` mechanism before launching VS Code when necessary. Manual offline distribution import is deferred to a future version.
 
-## Desenvolver e validar
+## Development and validation
 
-Node.js 22+ é necessário **apenas para desenvolver a extensão**.
+Node.js 22+ is required **only to develop the extension**.
 
 ```powershell
 npm install
@@ -208,8 +253,8 @@ npm run test:integration
 npm run package
 ```
 
-`npm test` executa testes locais sem downloads. `test:integration` baixa distribuições reais para `.integration-data`, inicia as quatro famílias no Windows (incluindo Tomcat 8.5 com Java 8), verifica isolamento e deploy por HTTP e encerra os processos. Também compila um cliente JDI para validar breakpoints e usa o Maven gerenciado para construir/publicar um WAR, validar inclusão de dependências `provided`, exclusão de container, preservação do target e manutenção do deploy após falha de compilação. Os binários ficam em cache para repetições. Não é um teste automatizado da interface gráfica do VS Code.
+`npm test` runs local tests without downloads. `test:integration` downloads real distributions into `.integration-data`, starts all four Tomcat families on Windows, including Tomcat 8.5 with Java 8, verifies isolation and deployment over HTTP, and shuts down the processes. It also compiles a JDI client to verify breakpoints and uses managed Maven to build/deploy a WAR, verify `provided` dependency inclusion and container exclusions, preserve the normal target directory, and retain deployment after compilation failure. Binaries are cached for subsequent runs. These are not automated tests of the VS Code graphical interface.
 
-Pressione F5 neste repositório para abrir um Extension Development Host e testar a interface em uma pasta de projeto separada. O VSIX usa o publisher local `local-development`; publicação no Marketplace não está incluída.
+Press F5 in this repository to open an Extension Development Host and test the interface against a separate project folder. The VSIX uses the local publisher `local-development`; Marketplace publication is not included.
 
-Independência das instalações não equivale a isolamento de segurança: o servidor, o build e a aplicação têm as permissões do usuário no Windows. Compatibilidade da aplicação, incluindo a mudança de `javax` para `jakarta`, continua sendo responsabilidade do projeto. Gradle, containers, outros sistemas e execução remota ficam fora desta versão.
+Independence from installed tools is not a security boundary: the server, build, and application run with the Windows user's permissions. Application compatibility, including migration from `javax` to `jakarta`, remains the project's responsibility. Gradle builds, containers, other operating systems, and remote execution are outside this version's scope.
